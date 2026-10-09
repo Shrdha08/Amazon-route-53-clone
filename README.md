@@ -10,7 +10,9 @@ A functional clone of the AWS Route 53 console: hosted zone and DNS record manag
 
 **Live demo:** _add the Vercel URL here after deploying (see [Deployment](#deployment))_ &nbsp;·&nbsp; sign in with `admin` / `admin123`.
 
-![Hosted zones](docs/screenshots/hosted-zones.png)
+| Sign-in | Hosted zones |
+| --- | --- |
+| ![Sign in](docs/screenshots/login.png) | ![Hosted zones](docs/screenshots/hosted-zones.png) |
 
 | Zone records, import/export, bulk actions | Dark mode |
 | --- | --- |
@@ -74,7 +76,7 @@ The frontend proxies `/api/*` to the backend (`BACKEND_URL`, default `http://127
 
 ### Demo credentials
 
-`admin` / `admin123`
+Account ID `123456789012`, IAM username `admin`, password `admin123` (also shown on the sign-in page).
 
 ## Architecture
 
@@ -90,7 +92,7 @@ Browser ──> Next.js (UI, port 3000)
 - **services/** – business logic (authentication, zone defaults such as the NS/SOA records Route 53 creates automatically, record validation and conflict rules). Rule violations raise `ServiceError`, which one exception handler turns into the HTTP response.
 - **models/** – SQLAlchemy ORM tables. **schemas/** – Pydantic request/response models.
 - **core/** – configuration (env driven), DB engine/session, password hashing.
-- **Auth** – mocked IAM sign-in. Credentials are checked against a `users` table (PBKDF2 hashed); a random session token is stored in `sessions` and sent as an `HttpOnly` cookie. Every non-auth route depends on `get_current_user`.
+- **Auth** – mocked IAM sign-in (the sign-in page is modeled on the AWS IAM user sign-in screen; the Account ID field is cosmetic and can be remembered in the browser). Credentials are checked against a `users` table (PBKDF2 hashed); a random session token is stored in `sessions` and sent as an `HttpOnly` cookie. Every non-auth route depends on `get_current_user`.
 - **Frontend** – an `AuthProvider` restores the session via `/api/auth/me` on load; an `AuthGuard` redirects unauthenticated users to `/login`. UI is built with Cloudscape components, the design system the real AWS console uses, to match its look and feel.
 
 ## Database schema
