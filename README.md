@@ -15,7 +15,7 @@ A functional clone of the AWS Route 53 console: hosted zone and DNS record manag
 | Mocked auth (login / logout / session) | Done        |
 | Database models and seed data          | Done        |
 | Hosted zones CRUD + search             | Done        |
-| DNS records CRUD + search + validation | Planned     |
+| DNS records CRUD + search + validation | Done        |
 | Route 53 console chrome (nav, sidebar) | In progress (top bar, side nav, breadcrumbs, notifications done) |
 | "Coming soon" placeholder sections     | Planned     |
 | Bonus: BIND import/export, dark mode, bulk ops, shortcuts | Planned |
@@ -75,7 +75,7 @@ Browser ──> Next.js (UI, port 3000)
 ```
 
 - **routers/** – thin HTTP layer: parse requests, call services, shape responses.
-- **services/** – business logic (authentication, zone defaults such as the NS/SOA records Route 53 creates automatically, name normalization).
+- **services/** – business logic (authentication, zone defaults such as the NS/SOA records Route 53 creates automatically, record validation and conflict rules). Rule violations raise `ServiceError`, which one exception handler turns into the HTTP response.
 - **models/** – SQLAlchemy ORM tables. **schemas/** – Pydantic request/response models.
 - **core/** – configuration (env driven), DB engine/session, password hashing.
 - **Auth** – mocked IAM sign-in. Credentials are checked against a `users` table (PBKDF2 hashed); a random session token is stored in `sessions` and sent as an `HttpOnly` cookie. Every non-auth route depends on `get_current_user`.
@@ -116,8 +116,10 @@ Base path: `/api`. All routes except `/auth/login` and `/health` require a valid
 | GET    | `/hosted-zones/{id}` | Read a zone | Done |
 | PATCH  | `/hosted-zones/{id}` | Edit a zone (description only, as in Route 53) | Done |
 | DELETE | `/hosted-zones/{id}` | Delete a zone; `409` while records other than the default NS/SOA exist | Done |
-| GET/POST | `/hosted-zones/{id}/records` | List (search, filter, paginate) / create | Planned |
-| PUT/DELETE | `/hosted-zones/{id}/records/{record_id}` | Edit / delete a record | Planned |
+| GET    | `/hosted-zones/{id}/records` | List records. Query: `q` (name or value), `type`, `sort_by` (name/type/ttl), `desc`, `page`, `page_size` | Done |
+| POST   | `/hosted-zones/{id}/records` | Create a record: `{name, type, ttl, values[]}` | Done |
+| PUT    | `/hosted-zones/{id}/records/{record_id}` | Edit TTL and values (name and type are immutable) | Done |
+| DELETE | `/hosted-zones/{id}/records/{record_id}` | Delete a record; apex NS/SOA are protected | Done |
 | POST   | `/hosted-zones/{id}/import` | Import BIND zone file (bonus) | Planned |
 | GET    | `/hosted-zones/{id}/export` | Export as JSON or BIND (bonus) | Planned |
 
@@ -132,13 +134,25 @@ These mirror Route 53 so the clone feels like the real console:
 - Only the description can be edited after creation.
 - A zone can only be deleted once just its default `NS`/`SOA` records remain, and the UI asks you to type `delete` to confirm.
 
+## DNS record behavior
+
+- Supported types: A, AAAA, CAA, CNAME, MX, NS, PTR, SRV, TXT (SOA exists on every zone but cannot be created).
+- Record names are relative to the zone: blank is the apex, `www` becomes `www.example.com.`, `*.app` is a wildcard. Fully qualified names inside the zone are accepted.
+- Each type is validated and normalized server-side: IPv4/IPv6 syntax, `MX` as `priority host`, `SRV` as `priority weight port target`, `CAA` as `flags tag "value"`, hostnames lower-cased with a trailing dot, bare `TXT` text auto-quoted.
+- A record set is unique per name and type; multiple values go on separate lines. A `CNAME` must be alone at its name and cannot sit at the apex.
+- Name and type cannot change when editing; only TTL and values can.
+- The apex NS and SOA records cannot be deleted. The list shows the apex first, like the console.
+- Validation failures return `422` with a readable message, name conflicts `409`.
+
 ## Frontend structure
 
 ```
 src/app/login/                 sign-in page
 src/app/(console)/             authenticated area (layout = AuthGuard + ConsoleShell)
-  hosted-zones/                list, create, [zoneId] details, [zoneId]/edit
+  hosted-zones/                list, create, [zoneId] details (Records tab), [zoneId]/edit
+    [zoneId]/records/          create, [recordId]/edit
 src/components/ConsoleShell    top nav, side nav, breadcrumbs, flash notifications
+src/components/Record*         records table, create/edit form, delete modal
 src/lib/                       API client, auth context, zone hooks (TanStack Query)
 ```
 
