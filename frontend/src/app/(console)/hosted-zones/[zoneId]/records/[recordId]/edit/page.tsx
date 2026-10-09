@@ -47,14 +47,16 @@ export default function EditRecordPage() {
       submitting={update.isPending}
       error={serverError}
       onCancel={() => router.push(`/hosted-zones/${zoneId}`)}
-      onSubmit={async ({ ttl, values }) => {
+      onSubmit={async ([{ ttl, values }]) => {
         setServerError(null);
         try {
           await update.mutateAsync({ ttl, values });
           notify("success", `Record ${record.name.replace(/\.$/, "")} (${record.type}) was successfully updated.`);
           router.push(`/hosted-zones/${zoneId}`);
+          return 1;
         } catch (e) {
           setServerError((e as Error).message);
+          return 0;
         }
       }}
     />
