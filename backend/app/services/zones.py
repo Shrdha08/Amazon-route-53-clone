@@ -6,19 +6,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession
 
 from app.models import DnsRecord, HostedZone, ZoneTag
+from app.services.errors import ServiceError
 
 _NS_SET = (
     "ns-1536.awsdns-00.co.uk.\nns-0.awsdns-00.com.\n"
     "ns-1024.awsdns-00.org.\nns-512.awsdns-00.net."
 )
 _SOA = "ns-1536.awsdns-00.co.uk. awsdns-hostmaster.amazon.com. 1 7200 900 1209600 86400"
-
-
-class ZoneError(Exception):
-    def __init__(self, status_code: int, message: str):
-        super().__init__(message)
-        self.status_code = status_code
-        self.message = message
 
 
 def normalize_name(name: str) -> str:
@@ -91,7 +85,7 @@ def list_zones(
 def get_zone(db: DbSession, zone_id: str) -> HostedZone:
     zone = db.get(HostedZone, zone_id)
     if not zone:
-        raise ZoneError(404, f"No hosted zone found with ID: {zone_id}")
+        raise ServiceError(404, f"No hosted zone found with ID: {zone_id}")
     count = db.scalar(select(func.count(DnsRecord.id)).where(DnsRecord.zone_id == zone_id)) or 0
     return _with_count(zone, count)
 
@@ -109,7 +103,7 @@ def create_zone(db: DbSession, name: str, comment: str, is_private: bool,
     except IntegrityError:
         db.rollback()
         kind = "private" if is_private else "public"
-        raise ZoneError(409, f"A {kind} hosted zone named {name.rstrip('.')} already exists") from None
+        raise ServiceError(409, f"A {kind} hosted zone named {name.rstrip('.')} already exists") from None
     return get_zone(db, zone.id)
 
 
@@ -130,7 +124,7 @@ def delete_zone(db: DbSession, zone_id: str) -> None:
         )
     )
     if extra:
-        raise ZoneError(409, "The hosted zone contains records other than the default NS and SOA "
+        raise ServiceError(409, "The hosted zone contains records other than the default NS and SOA "
                              "records. Delete those records before deleting the hosted zone.")
     db.delete(zone)
     db.commit()
