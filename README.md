@@ -14,9 +14,9 @@ A functional clone of the AWS Route 53 console: hosted zone and DNS record manag
 | -------------------------------------- | ----------- |
 | Mocked auth (login / logout / session) | Done        |
 | Database models and seed data          | Done        |
-| Hosted zones CRUD + search             | Planned     |
+| Hosted zones CRUD + search             | Done        |
 | DNS records CRUD + search + validation | Planned     |
-| Route 53 console chrome (nav, sidebar) | Planned     |
+| Route 53 console chrome (nav, sidebar) | In progress (top bar, side nav, breadcrumbs, notifications done) |
 | "Coming soon" placeholder sections     | Planned     |
 | Bonus: BIND import/export, dark mode, bulk ops, shortcuts | Planned |
 
@@ -111,12 +111,36 @@ Base path: `/api`. All routes except `/auth/login` and `/health` require a valid
 | POST   | `/auth/login`   | Sign in, sets session cookie        | Done    |
 | POST   | `/auth/logout`  | Sign out, clears cookie             | Done    |
 | GET    | `/auth/me`      | Current user                        | Done    |
-| GET/POST | `/hosted-zones` | List (search, filter, paginate) / create | Planned |
-| GET/PATCH/DELETE | `/hosted-zones/{id}` | Read / edit / delete a zone | Planned |
+| GET    | `/hosted-zones` | List zones. Query: `q`, `type` (all/public/private), `sort_by` (name/type/records/created), `desc`, `page`, `page_size` | Done |
+| POST   | `/hosted-zones` | Create a zone (adds NS + SOA records) | Done |
+| GET    | `/hosted-zones/{id}` | Read a zone | Done |
+| PATCH  | `/hosted-zones/{id}` | Edit a zone (description only, as in Route 53) | Done |
+| DELETE | `/hosted-zones/{id}` | Delete a zone; `409` while records other than the default NS/SOA exist | Done |
 | GET/POST | `/hosted-zones/{id}/records` | List (search, filter, paginate) / create | Planned |
 | PUT/DELETE | `/hosted-zones/{id}/records/{record_id}` | Edit / delete a record | Planned |
 | POST   | `/hosted-zones/{id}/import` | Import BIND zone file (bonus) | Planned |
 | GET    | `/hosted-zones/{id}/export` | Export as JSON or BIND (bonus) | Planned |
+
+## Hosted zone behavior
+
+These mirror Route 53 so the clone feels like the real console:
+
+- Domain names are lower-cased and stored fully qualified (trailing dot); labels must be valid and at least two are required.
+- Creating a zone automatically adds the apex `NS` and `SOA` records.
+- A public and a private zone may share a name, but not two zones of the same type.
+- A private zone requires a VPC region and ID.
+- Only the description can be edited after creation.
+- A zone can only be deleted once just its default `NS`/`SOA` records remain, and the UI asks you to type `delete` to confirm.
+
+## Frontend structure
+
+```
+src/app/login/                 sign-in page
+src/app/(console)/             authenticated area (layout = AuthGuard + ConsoleShell)
+  hosted-zones/                list, create, [zoneId] details, [zoneId]/edit
+src/components/ConsoleShell    top nav, side nav, breadcrumbs, flash notifications
+src/lib/                       API client, auth context, zone hooks (TanStack Query)
+```
 
 ## Limitations
 
