@@ -71,6 +71,8 @@ export default function RecordsTable({ zoneId }: { zoneId: string }) {
           { id: "name", header: "Record name", sortingField: "name", cell: (r) => r.name.replace(/\.$/, "") },
           { id: "type", header: "Type", sortingField: "type", cell: (r) => r.type },
           { id: "routing", header: "Routing policy", cell: (r) => r.routing_policy },
+          { id: "differentiator", header: "Differentiator", cell: () => "-" },
+          { id: "alias", header: "Alias", cell: () => "No" },
           {
             id: "value",
             header: "Value/Route traffic to",

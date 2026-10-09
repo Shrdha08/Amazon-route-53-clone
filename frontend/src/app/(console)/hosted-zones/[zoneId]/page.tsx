@@ -1,25 +1,26 @@
 "use client";
 
 import {
+  Alert,
   Box,
   Button,
   ColumnLayout,
   Container,
   ContentLayout,
+  ExpandableSection,
   Header,
   SpaceBetween,
   Spinner,
   Tabs,
-  Alert,
 } from "@cloudscape-design/components";
 import { useParams, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useBreadcrumbs } from "@/components/ConsoleShell";
 import DeleteZoneModal from "@/components/DeleteZoneModal";
 import RecordsTable from "@/components/RecordsTable";
 import { useZone } from "@/lib/zones";
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
       <Box variant="awsui-key-label">{label}</Box>
@@ -55,47 +56,43 @@ export default function HostedZoneDetailPage() {
     <>
       <ContentLayout
         header={
-          <Header
-            variant="h1"
-            actions={
-              <SpaceBetween direction="horizontal" size="xs">
-                <Button onClick={() => router.push(`/hosted-zones/${zone.id}/edit`)}>Edit hosted zone</Button>
-                <Button onClick={() => setDeleting(true)}>Delete zone</Button>
-              </SpaceBetween>
-            }
-          >
+          <Header variant="h1" actions={<Button onClick={() => setDeleting(true)}>Delete zone</Button>}>
             {displayName}
           </Header>
         }
       >
         <SpaceBetween size="l">
+          <ExpandableSection
+            variant="container"
+            defaultExpanded
+            headerText="Hosted zone details"
+            headerActions={<Button onClick={() => router.push(`/hosted-zones/${zone.id}/edit`)}>Edit hosted zone</Button>}
+          >
+            <ColumnLayout columns={4} variant="text-grid">
+              <Field label="Hosted zone name">{displayName}</Field>
+              <Field label="Hosted zone ID">{zone.id}</Field>
+              <Field label="Description">{zone.comment || "-"}</Field>
+              <Field label="Type">{zone.is_private ? "Private hosted zone" : "Public hosted zone"}</Field>
+              <Field label="Record count">{zone.record_count}</Field>
+              {zone.is_private && <Field label="Associated VPC">{zone.vpc_id} ({zone.vpc_region})</Field>}
+              <Field label="Created">{new Date(zone.created_at).toLocaleString()}</Field>
+            </ColumnLayout>
+          </ExpandableSection>
           <Tabs
             tabs={[
+              { id: "records", label: `Records (${zone.record_count})`, content: <RecordsTable zoneId={zone.id} /> },
               {
-                id: "records",
-                label: `Records (${zone.record_count})`,
-                content: <RecordsTable zoneId={zone.id} />,
-              },
-              {
-                id: "details",
-                label: "Hosted zone details",
+                id: "dnssec",
+                label: "DNSSEC signing",
                 content: (
-                  <Container header={<Header variant="h2">Hosted zone details</Header>}>
-                    <ColumnLayout columns={3} variant="text-grid">
-                      <Field label="Hosted zone name">{displayName}</Field>
-                      <Field label="Hosted zone ID">{zone.id}</Field>
-                      <Field label="Type">{zone.is_private ? "Private hosted zone" : "Public hosted zone"}</Field>
-                      <Field label="Description">{zone.comment || "-"}</Field>
-                      <Field label="Record count">{zone.record_count}</Field>
-                      <Field label="Created">{new Date(zone.created_at).toLocaleString()}</Field>
-                      {zone.is_private && <Field label="Associated VPC">{zone.vpc_id} ({zone.vpc_region})</Field>}
-                    </ColumnLayout>
+                  <Container header={<Header variant="h2">DNSSEC signing</Header>}>
+                    <Box color="text-body-secondary">DNSSEC signing is not enabled for this hosted zone. This feature is not available in this clone.</Box>
                   </Container>
                 ),
               },
               {
                 id: "tags",
-                label: "Tags",
+                label: `Hosted zone tags (${zone.tags.length})`,
                 content: (
                   <Container header={<Header variant="h2" counter={`(${zone.tags.length})`}>Tags</Header>}>
                     {zone.tags.length === 0 ? (
