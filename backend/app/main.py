@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import models  # noqa: F401  (register tables)
 from app.core.config import settings
 from app.core.database import Base, SessionLocal, engine
-from app.routers import auth
+from app.routers import auth, hosted_zones
 from app.seed import seed
 
 
@@ -29,6 +29,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api")
+app.include_router(hosted_zones.router, prefix="/api")
 
 
 @app.get("/api/health")
