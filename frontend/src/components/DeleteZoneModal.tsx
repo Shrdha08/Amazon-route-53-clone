@@ -39,7 +39,7 @@ function DeleteZoneModalBody({ zone, onClose, onDeleted }: Props) {
     <Modal
       visible={zone !== null}
       onDismiss={onClose}
-      header="Delete hosted zone"
+      header="Delete hosted zone?"
       footer={
         <Box float="right">
           <SpaceBetween direction="horizontal" size="xs">
@@ -54,10 +54,11 @@ function DeleteZoneModalBody({ zone, onClose, onDeleted }: Props) {
       <SpaceBetween size="m">
         {error && <Alert type="error">{error}</Alert>}
         <Box>
-          Are you sure you want to delete the hosted zone <b>{zone?.name.replace(/\.$/, "")}</b>? This action cannot be undone.
+          Delete <b>hosted zone</b> <i>{zone?.name.replace(/\.$/, "")}</i> permanently? This action cannot be undone.
         </Box>
-        <FormField label="To confirm deletion, type delete in the field.">
-          <Input value={confirm} placeholder="delete" onChange={({ detail }) => setConfirm(detail.value)} />
+        <hr style={{ border: 0, borderTop: "1px solid #e9ebed", margin: 0 }} />
+        <FormField label={<span style={{ fontWeight: 400 }}>To confirm deletion, enter <i>delete</i> in the text input field.</span>}>
+          <Input value={confirm} placeholder="delete" ariaLabel="Confirm deletion" onChange={({ detail }) => setConfirm(detail.value)} />
         </FormField>
       </SpaceBetween>
     </Modal>

@@ -51,7 +51,7 @@ function Body({ zoneId, records, onClose, onDeleted }: Props) {
     <Modal
       visible={count > 0}
       onDismiss={onClose}
-      header={count > 1 ? `Delete ${count} records` : "Delete record"}
+      header={count > 1 ? `Delete ${count} records?` : "Delete record?"}
       footer={
         <Box float="right">
           <SpaceBetween direction="horizontal" size="xs">
@@ -64,10 +64,12 @@ function Body({ zoneId, records, onClose, onDeleted }: Props) {
       <SpaceBetween size="m">
         {error && <Alert type="error">{error}</Alert>}
         {count === 1 ? (
-          <Box>Are you sure you want to delete the <b>{records[0].type}</b> record <b>{records[0].name.replace(/\.$/, "")}</b>?</Box>
+          <Box>
+            Delete <b>{records[0].type} record</b> <i>{records[0].name.replace(/\.$/, "")}</i> permanently? This action cannot be undone.
+          </Box>
         ) : (
           <>
-            <Box>Are you sure you want to delete these {count} records?</Box>
+            <Box>Delete these <b>{count} records</b> permanently? This action cannot be undone.</Box>
             <ul style={{ margin: 0 }}>
               {records.slice(0, SHOWN).map((r) => <li key={r.id}>{display(r)}</li>)}
               {count > SHOWN && <li>and {count - SHOWN} more</li>}
