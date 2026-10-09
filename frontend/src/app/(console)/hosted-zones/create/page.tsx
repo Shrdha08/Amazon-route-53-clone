@@ -79,7 +79,7 @@ export default function CreateHostedZonePage() {
         <Form
           actions={
             <SpaceBetween direction="horizontal" size="xs">
-              <Button variant="link" onClick={() => router.push("/hosted-zones")}>Cancel</Button>
+              <Button variant="link" formAction="none" onClick={() => router.push("/hosted-zones")}>Cancel</Button>
               <Button variant="primary" formAction="submit" loading={create.isPending}>Create hosted zone</Button>
             </SpaceBetween>
           }
@@ -140,10 +140,10 @@ export default function CreateHostedZonePage() {
                     <FormField label={i === 0 ? <>Value <i>- optional</i></> : undefined}>
                       <Input value={t.value} placeholder="Enter value" onChange={({ detail }) => setTags(tags.map((x, j) => (j === i ? { ...x, value: detail.value } : x)))} />
                     </FormField>
-                    <Button onClick={() => setTags(tags.filter((_, j) => j !== i))}>Remove</Button>
+                    <Button formAction="none" onClick={() => setTags(tags.filter((_, j) => j !== i))}>Remove</Button>
                   </SpaceBetween>
                 ))}
-                <Button disabled={tags.length >= MAX_TAGS} onClick={() => setTags([...tags, { key: "", value: "" }])}>Add tag</Button>
+                <Button formAction="none" disabled={tags.length >= MAX_TAGS} onClick={() => setTags([...tags, { key: "", value: "" }])}>Add tag</Button>
                 <Box variant="small" color="text-body-secondary">You can add up to {MAX_TAGS - tags.length} more tags.</Box>
               </SpaceBetween>
             </Container>

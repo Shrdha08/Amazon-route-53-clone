@@ -75,7 +75,7 @@ export default function RecordForm({ zoneName, record, submitting, error, submit
         <Form
           actions={
             <SpaceBetween direction="horizontal" size="xs">
-              <Button variant="link" onClick={onCancel}>Cancel</Button>
+              <Button variant="link" formAction="none" onClick={onCancel}>Cancel</Button>
               <Button variant="primary" formAction="submit" loading={submitting}>{submitLabel}</Button>
             </SpaceBetween>
           }

@@ -64,7 +64,7 @@ export default function EditHostedZonePage() {
         <Form
           actions={
             <SpaceBetween direction="horizontal" size="xs">
-              <Button variant="link" onClick={() => router.push(`/hosted-zones/${zoneId}`)}>Cancel</Button>
+              <Button variant="link" formAction="none" onClick={() => router.push(`/hosted-zones/${zoneId}`)}>Cancel</Button>
               <Button variant="primary" formAction="submit" loading={update.isPending}>Save changes</Button>
             </SpaceBetween>
           }
