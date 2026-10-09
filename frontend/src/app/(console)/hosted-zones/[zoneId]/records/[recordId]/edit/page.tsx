@@ -41,7 +41,7 @@ export default function EditRecordPage() {
   return (
     <RecordForm
       title="Edit record"
-      submitLabel="Save"
+      submitLabel="Save changes"
       zoneName={zone.name}
       record={record}
       submitting={update.isPending}

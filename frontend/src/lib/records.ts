@@ -33,6 +33,8 @@ export interface RecordListParams {
   desc: boolean;
   page: number;
   page_size: number;
+  routing_policy: string;
+  alias: "" | "yes" | "no";
 }
 
 export interface RecordInput {

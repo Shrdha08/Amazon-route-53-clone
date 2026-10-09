@@ -3,36 +3,40 @@
 import {
   Box,
   Button,
+  CollectionPreferences,
   Header,
+  Link as CsLink,
   Pagination,
-  Select,
+  PropertyFilter,
   SpaceBetween,
   Table,
-  TextFilter,
-  Link as CsLink,
-  type SelectProps,
+  type PropertyFilterProps,
 } from "@cloudscape-design/components";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import DeleteZoneModal from "@/components/DeleteZoneModal";
+import { useMemo, useState } from "react";
 import { useBreadcrumbs } from "@/components/ConsoleShell";
+import DeleteZoneModal from "@/components/DeleteZoneModal";
+import { EMPTY_QUERY, filterProps, queryToParams } from "@/lib/filtering";
 import { useHotkeys } from "@/lib/hotkeys";
 import { useZones, type HostedZone, type ZoneSortBy, type ZoneTypeFilter } from "@/lib/zones";
 
-const PAGE_SIZE = 10;
+const FILTER_PROPERTIES: PropertyFilterProps.FilteringProperty[] = [
+  { key: "name", propertyLabel: "Hosted zone name", groupValuesLabel: "Hosted zone name values", operators: [":", "="] },
+  { key: "type", propertyLabel: "Type", groupValuesLabel: "Type values", operators: ["="] },
+  { key: "comment", propertyLabel: "Description", groupValuesLabel: "Description values", operators: [":", "="] },
+  { key: "id", propertyLabel: "Hosted zone ID", groupValuesLabel: "Hosted zone ID values", operators: [":", "="] },
+];
 
-const TYPE_OPTIONS: SelectProps.Option[] = [
-  { value: "all", label: "All types" },
-  { value: "public", label: "Public hosted zones" },
-  { value: "private", label: "Private hosted zones" },
+const FILTER_OPTIONS: PropertyFilterProps.FilteringOption[] = [
+  { propertyKey: "type", value: "Public" },
+  { propertyKey: "type", value: "Private" },
 ];
 
 export default function HostedZonesPage() {
   const router = useRouter();
-  const [filterText, setFilterText] = useState("");
-  const [q, setQ] = useState("");
-  const [type, setType] = useState<ZoneTypeFilter>("all");
+  const [query, setQuery] = useState<PropertyFilterProps.Query>(EMPTY_QUERY);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [sortBy, setSortBy] = useState<ZoneSortBy>("name");
   const [desc, setDesc] = useState(false);
   const [selected, setSelected] = useState<HostedZone[]>([]);
@@ -42,24 +46,25 @@ export default function HostedZonesPage() {
 
   useBreadcrumbs(useMemo(() => [{ text: "Route 53", href: "/hosted-zones" }, { text: "Hosted zones", href: "/hosted-zones" }], []));
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setQ(filterText);
-      setPage(1);
-    }, 250);
-    return () => clearTimeout(t);
-  }, [filterText]);
-
-  const { data, isLoading, isError, error } = useZones({ q, type, sort_by: sortBy, desc, page, page_size: PAGE_SIZE });
-  const pages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
+  const { q, type } = queryToParams(query);
+  const { data, isLoading, isFetching, isError, error, refetch } = useZones({
+    q,
+    type: (type || "all") as ZoneTypeFilter,
+    sort_by: sortBy,
+    desc,
+    page,
+    page_size: pageSize,
+  });
+  const pages = Math.max(1, Math.ceil((data?.total ?? 0) / pageSize));
   const zone = selected[0];
-  const filtering = q !== "" || type !== "all";
+  const filtering = query.tokens.length > 0;
 
   return (
     <>
       <Table
         variant="full-page"
         stickyHeader
+        resizableColumns
         selectionType="single"
         selectedItems={selected}
         onSelectionChange={({ detail }) => setSelected(detail.selectedItems)}
@@ -79,6 +84,8 @@ export default function HostedZonesPage() {
             id: "name",
             header: "Hosted zone name",
             sortingField: "name",
+            width: 240,
+            minWidth: 160,
             cell: (z) => (
               <CsLink
                 href={`/hosted-zones/${z.id}`}
@@ -91,18 +98,25 @@ export default function HostedZonesPage() {
               </CsLink>
             ),
           },
-          { id: "type", header: "Type", sortingField: "type", cell: (z) => (z.is_private ? "Private" : "Public") },
-          { id: "created_by", header: "Created by", cell: () => "Route 53" },
-          { id: "records", header: "Record count", sortingField: "records", cell: (z) => z.record_count },
-          { id: "comment", header: "Description", cell: (z) => z.comment || "-" },
-          { id: "id", header: "Hosted zone ID", cell: (z) => z.id },
+          { id: "type", header: "Type", sortingField: "type", width: 110, cell: (z) => (z.is_private ? "Private" : "Public") },
+          { id: "created_by", header: "Created by", width: 150, cell: () => "Route 53" },
+          { id: "records", header: "Record count", sortingField: "records", width: 150, cell: (z) => z.record_count },
+          { id: "comment", header: "Description", width: 280, cell: (z) => z.comment || "-" },
+          { id: "id", header: "Hosted zone ID", width: 240, cell: (z) => z.id },
         ]}
         header={
           <Header
             variant="awsui-h1-sticky"
             counter={data ? `(${data.total})` : undefined}
+            description={
+              <>
+                Automatic mode is the current search behavior optimized for best filter results.{" "}
+                <CsLink href="#settings" onFollow={(e) => e.preventDefault()}>To change modes go to settings.</CsLink>
+              </>
+            }
             actions={
               <SpaceBetween direction="horizontal" size="xs">
+                <Button iconName="refresh" ariaLabel="Refresh hosted zones" loading={isFetching && !isLoading} onClick={() => refetch()} />
                 <Button disabled={!zone} onClick={() => router.push(`/hosted-zones/${zone.id}`)}>View details</Button>
                 <Button disabled={!zone} onClick={() => router.push(`/hosted-zones/${zone.id}/edit`)}>Edit</Button>
                 <Button disabled={!zone} onClick={() => setDeleting(zone)}>Delete</Button>
@@ -114,28 +128,36 @@ export default function HostedZonesPage() {
           </Header>
         }
         filter={
-          <SpaceBetween direction="horizontal" size="xs">
-            <div style={{ minWidth: 320 }}>
-              <TextFilter
-                filteringText={filterText}
-                filteringPlaceholder="Filter hosted zones by property or value"
-                filteringAriaLabel="Filter hosted zones"
-                countText={filtering && data ? `${data.total} ${data.total === 1 ? "match" : "matches"}` : undefined}
-                onChange={({ detail }) => setFilterText(detail.filteringText)}
-              />
-            </div>
-            <Select
-              selectedOption={TYPE_OPTIONS.find((o) => o.value === type) ?? TYPE_OPTIONS[0]}
-              options={TYPE_OPTIONS}
-              onChange={({ detail }) => {
-                setType(detail.selectedOption.value as ZoneTypeFilter);
-                setPage(1);
-              }}
-              ariaLabel="Hosted zone type"
-            />
-          </SpaceBetween>
+          <PropertyFilter
+            {...filterProps}
+            query={query}
+            onChange={({ detail }) => {
+              setQuery(detail);
+              setPage(1);
+            }}
+            filteringProperties={FILTER_PROPERTIES}
+            filteringOptions={FILTER_OPTIONS}
+            countText={filtering && data ? `${data.total} ${data.total === 1 ? "match" : "matches"}` : undefined}
+            expandToViewport
+          />
         }
         pagination={<Pagination currentPageIndex={page} pagesCount={pages} onChange={({ detail }) => setPage(detail.currentPageIndex)} />}
+        preferences={
+          <CollectionPreferences
+            title="Preferences"
+            confirmLabel="Confirm"
+            cancelLabel="Cancel"
+            preferences={{ pageSize }}
+            pageSizePreference={{
+              title: "Page size",
+              options: [10, 25, 50].map((n) => ({ value: n, label: `${n} hosted zones` })),
+            }}
+            onConfirm={({ detail }) => {
+              setPageSize(detail.pageSize ?? 10);
+              setPage(1);
+            }}
+          />
+        }
         empty={
           isError ? (
             <Box textAlign="center" color="text-status-error">{(error as Error).message}</Box>
@@ -143,7 +165,7 @@ export default function HostedZonesPage() {
             <Box textAlign="center" color="inherit">
               <b>No matches</b>
               <Box variant="p" color="inherit">No hosted zones match the filter.</Box>
-              <Button onClick={() => { setFilterText(""); setType("all"); }}>Clear filter</Button>
+              <Button onClick={() => setQuery(EMPTY_QUERY)}>Clear filter</Button>
             </Box>
           ) : (
             <Box textAlign="center" color="inherit">
@@ -154,11 +176,7 @@ export default function HostedZonesPage() {
           )
         }
       />
-      <DeleteZoneModal
-        zone={deleting}
-        onClose={() => setDeleting(null)}
-        onDeleted={() => setSelected([])}
-      />
+      <DeleteZoneModal zone={deleting} onClose={() => setDeleting(null)} onDeleted={() => setSelected([])} />
     </>
   );
 }

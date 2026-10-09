@@ -3,7 +3,9 @@
 import {
   Box,
   Button,
+  CollectionPreferences,
   Header,
+  Link,
   Pagination,
   Select,
   SpaceBetween,
@@ -12,24 +14,40 @@ import {
   type SelectProps,
 } from "@cloudscape-design/components";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useShell } from "@/components/ConsoleShell";
 import DeleteRecordModal from "@/components/DeleteRecordModal";
+import RecordDetailsPanel from "@/components/RecordDetailsPanel";
+import { FILTER_PLACEHOLDER } from "@/lib/filtering";
 import { useHotkeys } from "@/lib/hotkeys";
 import { RECORD_TYPES, useRecords, type DnsRecord, type RecordSortBy, type RecordType } from "@/lib/records";
 
-const PAGE_SIZE = 10;
-
 const TYPE_OPTIONS: SelectProps.Option[] = [
-  { value: "", label: "All types" },
+  { value: "", label: "Type" },
   ...[...RECORD_TYPES, "SOA"].map((t) => ({ value: t, label: t })),
 ];
+const ROUTING_OPTIONS: SelectProps.Option[] = [
+  { value: "", label: "Routing policy" },
+  { value: "Simple", label: "Simple" },
+];
+const ALIAS_OPTIONS: SelectProps.Option[] = [
+  { value: "", label: "Alias" },
+  { value: "yes", label: "Yes" },
+  { value: "no", label: "No" },
+];
+
+const pick = (options: SelectProps.Option[], value: string) => options.find((o) => o.value === value) ?? options[0];
 
 export default function RecordsTable({ zoneId }: { zoneId: string }) {
   const router = useRouter();
+  const { setSidePanel } = useShell();
   const [filterText, setFilterText] = useState("");
   const [q, setQ] = useState("");
   const [type, setType] = useState<RecordType | "">("");
+  const [routing, setRouting] = useState("");
+  const [alias, setAlias] = useState<"" | "yes" | "no">("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [sortBy, setSortBy] = useState<RecordSortBy>("name");
   const [desc, setDesc] = useState(false);
   const [selected, setSelected] = useState<DnsRecord[]>([]);
@@ -43,18 +61,43 @@ export default function RecordsTable({ zoneId }: { zoneId: string }) {
     return () => clearTimeout(t);
   }, [filterText]);
 
-  const { data, isLoading, isError, error } = useRecords(zoneId, { q, type, sort_by: sortBy, desc, page, page_size: PAGE_SIZE });
-  const pages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
-  const single = selected.length === 1 ? selected[0] : undefined;
-  const filtering = q !== "" || type !== "";
+  const { data, isLoading, isFetching, isError, error, refetch } = useRecords(zoneId, {
+    q,
+    type,
+    sort_by: sortBy,
+    desc,
+    page,
+    page_size: pageSize,
+    routing_policy: routing,
+    alias,
+  });
+  const pages = Math.max(1, Math.ceil((data?.total ?? 0) / pageSize));
+  const filtering = q !== "" || type !== "" || routing !== "" || alias !== "";
   const base = `/hosted-zones/${zoneId}/records`;
 
   useHotkeys({ c: () => router.push(`${base}/create`) });
+
+  const panel = useMemo(
+    () => <RecordDetailsPanel records={selected} onEdit={(r) => router.push(`${base}/${r.id}/edit`)} />,
+    [selected, router, base],
+  );
+  useEffect(() => {
+    setSidePanel(panel);
+    return () => setSidePanel(null);
+  }, [panel, setSidePanel]);
+
+  function resetFilters() {
+    setFilterText("");
+    setType("");
+    setRouting("");
+    setAlias("");
+  }
 
   return (
     <>
       <Table
         stickyHeader
+        resizableColumns
         selectionType="multi"
         selectedItems={selected}
         onSelectionChange={({ detail }) => setSelected(detail.selectedItems)}
@@ -71,28 +114,35 @@ export default function RecordsTable({ zoneId }: { zoneId: string }) {
         }}
         wrapLines
         columnDefinitions={[
-          { id: "name", header: "Record name", sortingField: "name", cell: (r) => r.name.replace(/\.$/, "") },
-          { id: "type", header: "Type", sortingField: "type", cell: (r) => r.type },
-          { id: "routing", header: "Routing policy", cell: (r) => r.routing_policy },
-          { id: "differentiator", header: "Differentiator", cell: () => "-" },
-          { id: "alias", header: "Alias", cell: () => "No" },
+          { id: "name", header: "Record name", sortingField: "name", width: 230, minWidth: 140, cell: (r) => r.name.replace(/\.$/, "") },
+          { id: "type", header: "Type", sortingField: "type", width: 100, cell: (r) => r.type },
+          { id: "routing", header: "Routing policy", width: 150, cell: (r) => r.routing_policy },
+          { id: "differentiator", header: "Differentiator", width: 140, cell: () => "-" },
+          { id: "alias", header: "Alias", width: 90, cell: () => "No" },
           {
             id: "value",
             header: "Value/Route traffic to",
-            cell: (r) => (
-              <div style={{ whiteSpace: "pre-line", wordBreak: "break-all" }}>{r.values.join("\n")}</div>
-            ),
+            width: 360,
+            minWidth: 200,
+            cell: (r) => <div style={{ whiteSpace: "pre-line", wordBreak: "break-all" }}>{r.values.join("\n")}</div>,
           },
-          { id: "ttl", header: "TTL (seconds)", sortingField: "ttl", cell: (r) => r.ttl },
+          { id: "ttl", header: "TTL (seconds)", sortingField: "ttl", width: 140, cell: (r) => r.ttl },
         ]}
         header={
           <Header
             counter={data ? `(${data.total})` : undefined}
+            info={<Link variant="info">Info</Link>}
+            description={
+              <>
+                Automatic mode is the current search behavior optimized for best filter results.{" "}
+                <Link href="#settings" onFollow={(e) => e.preventDefault()}>To change modes go to settings.</Link>
+              </>
+            }
             actions={
               <SpaceBetween direction="horizontal" size="xs">
-                <Button onClick={() => router.push(`${base}/import`)}>Import zone file</Button>
+                <Button iconName="refresh" ariaLabel="Refresh records" loading={isFetching && !isLoading} onClick={() => refetch()} />
                 <Button disabled={selected.length === 0} onClick={() => setDeleting(selected)}>Delete record{selected.length > 1 ? "s" : ""}</Button>
-                <Button disabled={!single} onClick={() => router.push(`${base}/${single?.id}/edit`)}>Edit record</Button>
+                <Button onClick={() => router.push(`${base}/import`)}>Import zone file</Button>
                 <Button variant="primary" onClick={() => router.push(`${base}/create`)}>Create record</Button>
               </SpaceBetween>
             }
@@ -105,24 +155,46 @@ export default function RecordsTable({ zoneId }: { zoneId: string }) {
             <div style={{ minWidth: 320 }}>
               <TextFilter
                 filteringText={filterText}
-                filteringPlaceholder="Filter records by property or value"
+                filteringPlaceholder={FILTER_PLACEHOLDER}
                 filteringAriaLabel="Filter records"
                 countText={filtering && data ? `${data.total} ${data.total === 1 ? "match" : "matches"}` : undefined}
                 onChange={({ detail }) => setFilterText(detail.filteringText)}
               />
             </div>
             <Select
-              selectedOption={TYPE_OPTIONS.find((o) => o.value === type) ?? TYPE_OPTIONS[0]}
+              selectedOption={pick(TYPE_OPTIONS, type)}
               options={TYPE_OPTIONS}
-              onChange={({ detail }) => {
-                setType((detail.selectedOption.value ?? "") as RecordType | "");
-                setPage(1);
-              }}
-              ariaLabel="Record type"
+              onChange={({ detail }) => { setType((detail.selectedOption.value ?? "") as RecordType | ""); setPage(1); }}
+              ariaLabel="Type"
+            />
+            <Select
+              selectedOption={pick(ROUTING_OPTIONS, routing)}
+              options={ROUTING_OPTIONS}
+              onChange={({ detail }) => { setRouting(detail.selectedOption.value ?? ""); setPage(1); }}
+              ariaLabel="Routing policy"
+            />
+            <Select
+              selectedOption={pick(ALIAS_OPTIONS, alias)}
+              options={ALIAS_OPTIONS}
+              onChange={({ detail }) => { setAlias((detail.selectedOption.value ?? "") as "" | "yes" | "no"); setPage(1); }}
+              ariaLabel="Alias"
             />
           </SpaceBetween>
         }
         pagination={<Pagination currentPageIndex={page} pagesCount={pages} onChange={({ detail }) => setPage(detail.currentPageIndex)} />}
+        preferences={
+          <CollectionPreferences
+            title="Preferences"
+            confirmLabel="Confirm"
+            cancelLabel="Cancel"
+            preferences={{ pageSize }}
+            pageSizePreference={{ title: "Page size", options: [10, 25, 50].map((n) => ({ value: n, label: `${n} records` })) }}
+            onConfirm={({ detail }) => {
+              setPageSize(detail.pageSize ?? 10);
+              setPage(1);
+            }}
+          />
+        }
         empty={
           isError ? (
             <Box textAlign="center" color="text-status-error">{(error as Error).message}</Box>
@@ -130,7 +202,7 @@ export default function RecordsTable({ zoneId }: { zoneId: string }) {
             <Box textAlign="center" color="inherit">
               <b>No matches</b>
               <Box variant="p" color="inherit">No records match the filter.</Box>
-              <Button onClick={() => { setFilterText(""); setType(""); }}>Clear filter</Button>
+              <Button onClick={resetFilters}>Clear filter</Button>
             </Box>
           ) : (
             <Box textAlign="center" color="inherit">

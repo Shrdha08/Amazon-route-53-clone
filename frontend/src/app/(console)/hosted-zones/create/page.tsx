@@ -10,19 +10,23 @@ import {
   FormField,
   Header,
   Input,
-  RadioGroup,
+  Link,
   Select,
   SpaceBetween,
   Textarea,
+  Tiles,
 } from "@cloudscape-design/components";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useBreadcrumbs, useShell } from "@/components/ConsoleShell";
+import { REGIONS } from "@/lib/regions";
 import { useCreateZone, type Tag } from "@/lib/zones";
 
-const REGIONS = ["us-east-1", "us-east-2", "us-west-1", "us-west-2", "eu-west-1", "eu-central-1", "ap-south-1", "ap-southeast-1"];
 const DOMAIN_RE = /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))+\.?$/i;
 const MAX_TAGS = 50;
+const MAX_COMMENT = 256;
+
+const InfoLink = () => <Link variant="info">Info</Link>;
 
 export default function CreateHostedZonePage() {
   const router = useRouter();
@@ -31,8 +35,9 @@ export default function CreateHostedZonePage() {
   const [name, setName] = useState("");
   const [comment, setComment] = useState("");
   const [type, setType] = useState<"public" | "private">("public");
-  const [region, setRegion] = useState("us-east-1");
+  const [region, setRegion] = useState<string | null>(null);
   const [vpcId, setVpcId] = useState("");
+  const [vpcNoticeOpen, setVpcNoticeOpen] = useState(true);
   const [tags, setTags] = useState<Tag[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -49,9 +54,10 @@ export default function CreateHostedZonePage() {
   );
 
   const nameError = !name.trim() ? "Domain name is required" : !DOMAIN_RE.test(name.trim()) ? "Domain name is not valid, e.g. example.com" : "";
+  const regionError = type === "private" && !region ? "Choose a region" : "";
   const vpcError = type === "private" && !vpcId.trim() ? "VPC ID is required for a private hosted zone" : "";
   const tagKeyError = (t: Tag) => (!t.key.trim() ? "Key is required" : tags.filter((x) => x.key === t.key).length > 1 ? "Keys must be unique" : "");
-  const invalid = Boolean(nameError || vpcError || tags.some(tagKeyError));
+  const invalid = Boolean(nameError || regionError || vpcError || tags.some(tagKeyError));
 
   async function onSubmit() {
     setSubmitted(true);
@@ -66,7 +72,11 @@ export default function CreateHostedZonePage() {
         vpc_id: type === "private" ? vpcId.trim() : null,
         tags,
       });
-      notify("success", `Successfully created hosted zone ${zone.name.replace(/\.$/, "")}.`);
+      notify(
+        "success",
+        "Now you can create records in the hosted zone to specify how you want Route 53 to route traffic for your domain.",
+        `${zone.name.replace(/\.$/, "")} was successfully created.`,
+      );
       router.push(`/hosted-zones/${zone.id}`);
     } catch (e) {
       setServerError((e as Error).message);
@@ -74,7 +84,7 @@ export default function CreateHostedZonePage() {
   }
 
   return (
-    <ContentLayout header={<Header variant="h1" description="Specify the domain name and settings for the DNS records that you want to manage.">Create hosted zone</Header>}>
+    <ContentLayout header={<Header variant="h1" info={<InfoLink />}>Create hosted zone</Header>}>
       <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
         <Form
           actions={
@@ -86,21 +96,46 @@ export default function CreateHostedZonePage() {
         >
           <SpaceBetween size="l">
             {serverError && <Alert type="error" header="Could not create hosted zone">{serverError}</Alert>}
-            <Container header={<Header variant="h2">Hosted zone configuration</Header>}>
+            <Container
+              header={
+                <Header
+                  variant="h2"
+                  description="A hosted zone is a container that holds information about how you want to route traffic for a domain, such as example.com, and its subdomains."
+                >
+                  Hosted zone configuration
+                </Header>
+              }
+            >
               <SpaceBetween size="l">
                 <FormField
                   label="Domain name"
+                  info={<InfoLink />}
                   description="This is the name of the domain that you want to route traffic for."
-                  constraintText="Valid characters: a-z, 0-9, and - (hyphen)."
+                  constraintText={'Valid characters: a-z, 0-9, ! " # $ % & \' ( ) * + , - / : ; < = > ? @ [ \\ ] ^ _ ` { | } . ~'}
                   errorText={submitted ? nameError : ""}
                 >
-                  <Input value={name} placeholder="example.com" onChange={({ detail }) => setName(detail.value)} />
+                  <Input value={name} onChange={({ detail }) => setName(detail.value)} />
                 </FormField>
-                <FormField label={<>Description <i>- optional</i></>} description="This value lets you distinguish hosted zones that have the same name." constraintText="The description can have up to 256 characters.">
-                  <Textarea value={comment} rows={3} onChange={({ detail }) => setComment(detail.value.slice(0, 256))} />
+                <FormField
+                  label={<>Description <i>- optional</i></>}
+                  info={<InfoLink />}
+                  description="This value lets you distinguish hosted zones that have the same name."
+                  constraintText={`The description can have up to ${MAX_COMMENT} characters. ${comment.length}/${MAX_COMMENT}`}
+                >
+                  <Textarea
+                    value={comment}
+                    rows={3}
+                    placeholder="The hosted zone is used for..."
+                    onChange={({ detail }) => setComment(detail.value.slice(0, MAX_COMMENT))}
+                  />
                 </FormField>
-                <FormField label="Type" description="The type indicates whether you want to route traffic on the internet or in an Amazon VPC.">
-                  <RadioGroup
+                <FormField
+                  label="Type"
+                  info={<InfoLink />}
+                  description="The type indicates whether you want to route traffic on the internet or in an Amazon VPC."
+                >
+                  <Tiles
+                    columns={2}
                     value={type}
                     onChange={({ detail }) => setType(detail.value as "public" | "private")}
                     items={[
@@ -113,25 +148,62 @@ export default function CreateHostedZonePage() {
             </Container>
 
             {type === "private" && (
-              <Container header={<Header variant="h2">VPCs to associate with the hosted zone</Header>}>
+              <Container
+                header={
+                  <Header
+                    variant="h2"
+                    info={<InfoLink />}
+                    description="To use this hosted zone to resolve DNS queries for one or more VPCs, choose the VPCs. To associate a VPC with a hosted zone when the VPC was created using a different AWS account, you must use a programmatic method, such as the AWS CLI."
+                  >
+                    VPCs to associate with the hosted zone
+                  </Header>
+                }
+              >
                 <SpaceBetween size="l">
-                  <FormField label="Region">
-                    <Select
-                      selectedOption={{ value: region, label: region }}
-                      options={REGIONS.map((r) => ({ value: r, label: r }))}
-                      onChange={({ detail }) => setRegion(detail.selectedOption.value ?? region)}
-                    />
-                  </FormField>
-                  <FormField label="VPC ID" errorText={submitted ? vpcError : ""}>
-                    <Input value={vpcId} placeholder="vpc-0123456789abcdef0" onChange={({ detail }) => setVpcId(detail.value)} />
-                  </FormField>
+                  {vpcNoticeOpen && (
+                    <Alert type="info" dismissible onDismiss={() => setVpcNoticeOpen(false)}>
+                      For each VPC that you associate with a private hosted zone, you must set the Amazon VPC settings{" "}
+                      <Link external href="https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/hosted-zone-private-considerations.html#hosted-zone-private-considerations-vpc-settings">
+                        enableDnsHostnames and enableDnsSupport
+                      </Link>{" "}
+                      to true.
+                    </Alert>
+                  )}
+                  <SpaceBetween direction="horizontal" size="s" alignItems="end">
+                    <FormField label="Region" info={<InfoLink />} errorText={submitted ? regionError : ""}>
+                      <Select
+                        selectedOption={region ? { value: region, label: REGIONS.find((r) => r.code === region)?.name ?? region } : null}
+                        placeholder="Choose region"
+                        filteringType="auto"
+                        filteringPlaceholder="Find region"
+                        options={REGIONS.map((r) => ({ value: r.code, label: r.name, description: r.code }))}
+                        onChange={({ detail }) => setRegion(detail.selectedOption.value ?? null)}
+                      />
+                    </FormField>
+                    <FormField label="VPC ID" info={<InfoLink />} errorText={submitted ? vpcError : ""}>
+                      <Input value={vpcId} type="search" placeholder="Choose VPC" onChange={({ detail }) => setVpcId(detail.value)} />
+                    </FormField>
+                    <Button formAction="none" disabled>Remove VPC</Button>
+                  </SpaceBetween>
+                  <Box>
+                    <Button formAction="none" disabled>Add VPC</Button>
+                    <Box variant="small" color="text-body-secondary" margin={{ left: "s" }} display="inline-block">
+                      This clone supports one VPC per hosted zone.
+                    </Box>
+                  </Box>
                 </SpaceBetween>
               </Container>
             )}
 
-            <Container header={<Header variant="h2">Tags</Header>}>
+            <Container
+              header={
+                <Header variant="h2" info={<InfoLink />} description="Apply tags to hosted zones to help organize and identify them.">
+                  Tags
+                </Header>
+              }
+            >
               <SpaceBetween size="s">
-                <Box color="text-body-secondary">A tag is a label that you assign to an AWS resource. Each tag consists of a key and an optional value.</Box>
+                {tags.length === 0 && <Box color="text-body-secondary">No tags associated with the resource.</Box>}
                 {tags.map((t, i) => (
                   <SpaceBetween key={i} direction="horizontal" size="xs" alignItems="end">
                     <FormField label={i === 0 ? "Key" : undefined} errorText={submitted ? tagKeyError(t) : ""}>
