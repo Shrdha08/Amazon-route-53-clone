@@ -18,7 +18,10 @@ A functional clone of the AWS Route 53 console: hosted zone and DNS record manag
 | DNS records CRUD + search + validation | Done        |
 | Route 53 console chrome (nav, sidebar) | Done        |
 | "Coming soon" placeholder sections     | Done        |
-| Bonus: BIND import/export, dark mode, bulk ops, shortcuts | Planned |
+| Bonus: BIND import, BIND/JSON export | Done        |
+| Bonus: bulk record delete              | Done        |
+| Bonus: dark mode                       | Done        |
+| Bonus: keyboard shortcuts              | Done        |
 
 ## Repository layout
 
@@ -120,8 +123,9 @@ Base path: `/api`. All routes except `/auth/login` and `/health` require a valid
 | POST   | `/hosted-zones/{id}/records` | Create a record: `{name, type, ttl, values[]}` | Done |
 | PUT    | `/hosted-zones/{id}/records/{record_id}` | Edit TTL and values (name and type are immutable) | Done |
 | DELETE | `/hosted-zones/{id}/records/{record_id}` | Delete a record; apex NS/SOA are protected | Done |
-| POST   | `/hosted-zones/{id}/import` | Import BIND zone file (bonus) | Planned |
-| GET    | `/hosted-zones/{id}/export` | Export as JSON or BIND (bonus) | Planned |
+| POST   | `/hosted-zones/{id}/records/import` | Import a BIND zone file: `{content}`. Returns `{created, skipped[], errors[]}`; existing records are never overwritten | Done |
+| POST   | `/hosted-zones/{id}/records/bulk-delete` | Delete many records: `{ids[]}`. Returns `{deleted[], failed[{id, reason}]}` | Done |
+| GET    | `/hosted-zones/{id}/export` | Download the zone as `?format=bind` (default, `.zone`) or `json` | Done |
 
 ## Hosted zone behavior
 
@@ -144,6 +148,21 @@ These mirror Route 53 so the clone feels like the real console:
 - The apex NS and SOA records cannot be deleted. The list shows the apex first, like the console.
 - Validation failures return `422` with a readable message, name conflicts `409`.
 
+## Bonus features
+
+- **BIND import** (Records tab > *Import zone file*): upload a file or paste text. Supports `$ORIGIN`, `$TTL` (with `1h`/`1d` units), comments, `( )` continuation lines, omitted owner names, `@`, relative names and multi-string TXT. Lines are grouped into record sets, validated like any created record, and reported as created, skipped (already exists, apex SOA/NS) or errored with line numbers.
+- **Export** (*Export zone* on the zone page): BIND zone file or JSON. A BIND export re-imports cleanly into a zone of the same name.
+- **Bulk delete**: select several records (or all on the page) and delete them in one action. Protected apex NS/SOA records are reported as failures while the rest are deleted.
+- **Dark mode**: toggle in the top bar; saved in the browser.
+- **Keyboard shortcuts** (inactive while typing; press `?` in the app to list them):
+
+  | Key | Action |
+  | --- | --- |
+  | `?` | Show keyboard shortcuts |
+  | `/` | Focus the table filter |
+  | `g` then `h` / `d` | Go to hosted zones / dashboard |
+  | `c` | Create a hosted zone (zones list) or a record (zone page) |
+
 ## Frontend structure
 
 ```
@@ -156,13 +175,14 @@ src/app/(console)/             authenticated area (layout = AuthGuard + ConsoleS
     [zoneId]/records/          create, [recordId]/edit
 src/components/ConsoleShell    top nav, side nav, breadcrumbs, flash notifications
 src/components/Record*         records table, create/edit form, delete modal
+src/lib/                       also: theme (dark mode), hotkeys, download (export)
 src/lib/                       API client, auth context, zone hooks (TanStack Query)
 ```
 
 ## Testing
 
 ```bash
-cd backend  && python -m pytest                      # API, validation, auth (41 tests)
+cd backend  && python -m pytest                      # API, validation, import/export, auth (48 tests)
 cd frontend && npx tsc --noEmit && npx eslint src    # types and lint
 ```
 
