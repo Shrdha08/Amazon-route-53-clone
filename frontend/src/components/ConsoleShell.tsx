@@ -13,7 +13,10 @@ import {
 } from "@cloudscape-design/components";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import ShortcutsModal from "@/components/ShortcutsModal";
 import { useAuth } from "@/lib/auth";
+import { useHotkeys } from "@/lib/hotkeys";
+import { useTheme } from "@/lib/theme";
 
 interface ShellApi {
   notify: (type: "success" | "error" | "info", content: ReactNode) => void;
@@ -54,6 +57,12 @@ const NAV_LINKS = NAV_ITEMS.flatMap((i) => (i.type === "section" ? i.items : [i]
   i.type === "link" ? [i.href] : [],
 );
 
+/** Focus the page table filter: the last visible search box (the top bar has its own). */
+function focusTableFilter() {
+  const boxes = Array.from(document.querySelectorAll<HTMLInputElement>("input[type=search]")).filter((el) => el.offsetParent !== null);
+  boxes[boxes.length - 1]?.focus();
+}
+
 export default function ConsoleShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -62,6 +71,8 @@ export default function ConsoleShell({ children }: { children: ReactNode }) {
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbGroupProps.Item[]>([]);
   const [navOpen, setNavOpen] = useState(true);
   const [search, setSearch] = useState("");
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const { theme, toggle: toggleTheme } = useTheme();
 
   const notify = useCallback<ShellApi["notify"]>((type, content) => {
     const id = crypto.randomUUID();
@@ -76,6 +87,13 @@ export default function ConsoleShell({ children }: { children: ReactNode }) {
 
   const go = (href: string) => router.push(href);
 
+  useHotkeys({
+    "?": () => setShortcutsOpen(true),
+    "/": focusTableFilter,
+    "g h": () => go("/hosted-zones"),
+    "g d": () => go("/dashboard"),
+  });
+
   return (
     <ShellContext.Provider value={api}>
       <div id="top-nav" style={{ position: "sticky", top: 0, zIndex: 1002 }}>
@@ -83,11 +101,16 @@ export default function ConsoleShell({ children }: { children: ReactNode }) {
           identity={{ href: "/hosted-zones", title: "Route 53", onFollow: (e) => { e.preventDefault(); go("/hosted-zones"); } }}
           search={<Input type="search" ariaLabel="Search" placeholder="Search" value={search} onChange={({ detail }) => setSearch(detail.value)} />}
           utilities={[
+            { type: "button", text: theme === "dark" ? "Light mode" : "Dark mode", onClick: toggleTheme },
             { type: "menu-dropdown", text: "Global", ariaLabel: "Region", items: [{ id: "global", text: "Global" }] },
             {
               type: "menu-dropdown",
               text: "Support",
-              items: [{ id: "docs", text: "Documentation", href: "https://docs.aws.amazon.com/route53/", external: true }],
+              items: [
+                { id: "shortcuts", text: "Keyboard shortcuts" },
+                { id: "docs", text: "Documentation", href: "https://docs.aws.amazon.com/route53/", external: true },
+              ],
+              onItemClick: ({ detail }) => detail.id === "shortcuts" && setShortcutsOpen(true),
             },
             {
               type: "menu-dropdown",
@@ -107,6 +130,7 @@ export default function ConsoleShell({ children }: { children: ReactNode }) {
           ]}
         />
       </div>
+      <ShortcutsModal visible={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <AppLayout
         headerSelector="#top-nav"
         navigationOpen={navOpen}

@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import DeleteZoneModal from "@/components/DeleteZoneModal";
 import { useBreadcrumbs } from "@/components/ConsoleShell";
+import { useHotkeys } from "@/lib/hotkeys";
 import { useZones, type HostedZone, type ZoneSortBy, type ZoneTypeFilter } from "@/lib/zones";
 
 const PAGE_SIZE = 10;
@@ -36,6 +37,8 @@ export default function HostedZonesPage() {
   const [desc, setDesc] = useState(false);
   const [selected, setSelected] = useState<HostedZone[]>([]);
   const [deleting, setDeleting] = useState<HostedZone | null>(null);
+
+  useHotkeys({ c: () => router.push("/hosted-zones/create") });
 
   useBreadcrumbs(useMemo(() => [{ text: "Route 53", href: "/hosted-zones" }, { text: "Hosted zones", href: "/hosted-zones" }], []));
 

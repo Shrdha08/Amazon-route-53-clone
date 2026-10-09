@@ -1,6 +1,7 @@
 "use client";
 
 import { Alert, Box, Button, Container, Form, FormField, Header, Input, SpaceBetween } from "@cloudscape-design/components";
+import { colorBackgroundLayoutMain } from "@cloudscape-design/design-tokens";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth";
@@ -32,7 +33,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f2f3f3", display: "flex", justifyContent: "center", paddingTop: 80 }}>
+    <div style={{ minHeight: "100vh", background: colorBackgroundLayoutMain, display: "flex", justifyContent: "center", paddingTop: 80 }}>
       <div style={{ width: 400 }}>
         <Box textAlign="center" margin={{ bottom: "l" }} fontSize="heading-xl" fontWeight="bold">
           aws
