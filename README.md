@@ -8,6 +8,14 @@ A functional clone of the AWS Route 53 console: hosted zone and DNS record manag
 | Backend  | FastAPI, SQLAlchemy 2, Pydantic v2                     |
 | Database | SQLite                                                 |
 
+**Live demo:** _add the Vercel URL here after deploying (see [Deployment](#deployment))_ &nbsp;·&nbsp; sign in with `admin` / `admin123`.
+
+![Hosted zones](docs/screenshots/hosted-zones.png)
+
+| Zone records, import/export, bulk actions | Dark mode |
+| --- | --- |
+| ![Zone records](docs/screenshots/zone-records.png) | ![Dark mode](docs/screenshots/dark-mode.png) |
+
 ## Status
 
 | Area                                   | State       |
@@ -22,6 +30,7 @@ A functional clone of the AWS Route 53 console: hosted zone and DNS record manag
 | Bonus: bulk record delete              | Done        |
 | Bonus: dark mode                       | Done        |
 | Bonus: keyboard shortcuts              | Done        |
+| Deployment config (Docker, Render, CI) | Done        |
 
 ## Repository layout
 
@@ -121,6 +130,7 @@ Base path: `/api`. All routes except `/auth/login` and `/health` require a valid
 | DELETE | `/hosted-zones/{id}` | Delete a zone; `409` while records other than the default NS/SOA exist | Done |
 | GET    | `/hosted-zones/{id}/records` | List records. Query: `q` (name or value), `type`, `sort_by` (name/type/ttl), `desc`, `page`, `page_size` | Done |
 | POST   | `/hosted-zones/{id}/records` | Create a record: `{name, type, ttl, values[]}` | Done |
+| GET    | `/hosted-zones/{id}/records/{record_id}` | Read one record | Done |
 | PUT    | `/hosted-zones/{id}/records/{record_id}` | Edit TTL and values (name and type are immutable) | Done |
 | DELETE | `/hosted-zones/{id}/records/{record_id}` | Delete a record; apex NS/SOA are protected | Done |
 | POST   | `/hosted-zones/{id}/records/import` | Import a BIND zone file: `{content}`. Returns `{created, skipped[], errors[]}`; existing records are never overwritten | Done |
@@ -175,19 +185,49 @@ src/app/(console)/             authenticated area (layout = AuthGuard + ConsoleS
     [zoneId]/records/          create, [recordId]/edit
 src/components/ConsoleShell    top nav, side nav, breadcrumbs, flash notifications
 src/components/Record*         records table, create/edit form, delete modal
-src/lib/                       also: theme (dark mode), hotkeys, download (export)
-src/lib/                       API client, auth context, zone hooks (TanStack Query)
+src/lib/                       API client, auth context, zone/record hooks (TanStack Query),
+                               theme (dark mode), hotkeys, download (export)
 ```
 
 ## Testing
 
 ```bash
-cd backend  && python -m pytest                      # API, validation, import/export, auth (48 tests)
+cd backend  && python -m pytest                      # API, validation, import/export, auth (49 tests)
 cd frontend && npx tsc --noEmit && npx eslint src    # types and lint
 ```
 
 The main user flows (login, session persistence, zone and record create/edit/delete, search, apex protection, logout) were also exercised end to end in a real browser.
 
+## Deployment
+
+The frontend and backend deploy separately. Because Next.js proxies `/api/*` to the backend server-side, the browser only ever talks to the frontend origin: no CORS setup, and the session cookie stays first-party.
+
+**1. Backend on Render** (Docker). In Render choose *New > Blueprint*, select this repo and it reads [`render.yaml`](render.yaml) (Docker build from `backend/`, health check at `/api/health`, `COOKIE_SECURE=true`). Note the service URL, e.g. `https://route53-clone-api.onrender.com`.
+
+**2. Frontend on Vercel.** Import the repo, set *Root Directory* to `frontend`, and add the environment variable `BACKEND_URL` = the Render URL from step 1. Deploy; the Vercel URL is the demo link.
+
+Notes:
+
+- **Persistence.** SQLite lives in `/app/data/route53.db`. Render free instances have an ephemeral disk, so data resets on redeploy or restart and the demo is re-seeded automatically. For durable data, use a paid instance with a disk mounted at `/app/data` (the default `DATABASE_URL` already points there).
+- **Cold starts.** Free Render services sleep when idle; the first request after a pause can take about a minute.
+- **Docker locally:** `docker build -t route53-api backend && docker run -p 8000:8000 route53-api`.
+- **CI.** [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the backend tests and the frontend type-check, lint and build on every push.
+
+Environment variables: backend `DATABASE_URL`, `CORS_ORIGINS`, `SESSION_TTL_HOURS`, `COOKIE_SECURE`, `COOKIE_SAMESITE` (see `backend/.env.example`); frontend `BACKEND_URL` (see `frontend/.env.example`).
+
+## Design decisions
+
+- **Cloudscape Design System** for the UI: it is the system the real console is built on, which gets tables, forms, modals, flashbars and navigation visually close without hand-copying CSS.
+- **Same-origin proxy** instead of CORS + cross-site cookies: simpler, and more secure for an `HttpOnly` session cookie.
+- **Server-side validation is authoritative**; the UI mirrors only the cheap checks so users get fast feedback.
+- **Records store values as newline-separated text** (like the console's multi-line value box) rather than a child table: record sets stay one row per name/type, matching Route 53's model and keeping uniqueness simple.
+- **Idempotent seeding on startup** so a fresh database (or a redeploy on ephemeral disk) is immediately demo-ready.
+
 ## Limitations
 
 This is a UI/UX clone. No DNS queries are answered, and IAM, billing, organizations and other AWS services are mocked.
+
+- Routing policy is fixed to *Simple* and alias records are not supported.
+- Zone tags can be set at creation but not edited afterwards; DNSSEC, query logging and VPC association changes are not implemented.
+- The top-bar search, region and support menus are visual only.
+- The font is the Cloudscape default, not Amazon Ember.
