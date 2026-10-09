@@ -156,7 +156,9 @@ These mirror Route 53 so the clone feels like the real console:
 - Record names are relative to the zone: blank is the apex, `www` becomes `www.example.com.`, `*.app` is a wildcard. Fully qualified names inside the zone are accepted.
 - Each type is validated and normalized server-side: IPv4/IPv6 syntax, `MX` as `priority host`, `SRV` as `priority weight port target`, `CAA` as `flags tag "value"`, hostnames lower-cased with a trailing dot, bare `TXT` text auto-quoted.
 - A record set is unique per name and type; multiple values go on separate lines. A `CNAME` must be alone at its name and cannot sit at the apex.
+- **Quick create record** works like the console: several records can be added in one submit (*Add another record*), with TTL shortcuts (1m / 1h / 1d) and the console's record-type descriptions. Records are created in order; if one fails, the ones before it are kept and the failing ones stay in the form with the error.
 - Name and type cannot change when editing; only TTL and values can.
+- Selecting records in the table opens a details panel on the right with *Edit record*.
 - The apex NS and SOA records cannot be deleted. The list shows the apex first, like the console.
 - Validation failures return `422` with a readable message, name conflicts `409`.
 
@@ -229,7 +231,8 @@ Environment variables: backend `DATABASE_URL`, `CORS_ORIGINS`, `SESSION_TTL_HOUR
 
 This is a UI/UX clone. No DNS queries are answered, and IAM, billing, organizations and other AWS services are mocked.
 
-- Routing policy is fixed to *Simple* and alias records are not supported.
-- Zone tags can be set at creation but not edited afterwards; DNSSEC, query logging and VPC association changes are not implemented.
-- The top-bar search, region and support menus are visual only.
+- Routing policy is fixed to *Simple* (other policies are listed but disabled) and alias records are not supported (the Alias toggle is disabled). SPF and NAPTR are listed but disabled. The record *wizard* is not implemented; *Switch to wizard* shows a notice.
+- Zone tags can be set at creation but not edited afterwards; DNSSEC, query logging, Test record and VPC association changes are not implemented. Private zones support one VPC.
+- The top-bar search, Services, CloudShell, notifications and region menus are visual only.
+- The UI was matched against public 2023-2024 screenshots of the console and the AWS documentation, not a live account, so details of the current console may differ.
 - The font is the Cloudscape default, not Amazon Ember.
