@@ -1,5 +1,6 @@
 "use client";
 
+import { applyTheme } from "@cloudscape-design/components/theming";
 import { applyMode, Mode } from "@cloudscape-design/global-styles";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 
@@ -9,6 +10,19 @@ interface ThemeState {
   theme: Theme;
   toggle: () => void;
 }
+
+/** The real console uses orange primary buttons with dark text. */
+const ORANGE = {
+  colorBackgroundButtonPrimaryDefault: "#ff9900",
+  colorBackgroundButtonPrimaryHover: "#ec8d00",
+  colorBackgroundButtonPrimaryActive: "#d98200",
+  colorBorderButtonPrimaryDefault: "#ff9900",
+  colorBorderButtonPrimaryHover: "#ec8d00",
+  colorBorderButtonPrimaryActive: "#d98200",
+  colorTextButtonPrimaryDefault: "#0f1b2a",
+  colorTextButtonPrimaryHover: "#0f1b2a",
+  colorTextButtonPrimaryActive: "#0f1b2a",
+};
 
 const STORAGE_KEY = "r53-theme";
 const ThemeContext = createContext<ThemeState | null>(null);
@@ -23,6 +37,12 @@ function readStoredTheme(): Theme {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>("light");
+
+  useEffect(() => {
+    applyTheme({
+      theme: { tokens: Object.fromEntries(Object.entries(ORANGE).map(([k, v]) => [k, { light: v, dark: v }])) },
+    });
+  }, []);
 
   // Read the saved preference after mount so server and client markup match.
   useEffect(() => {

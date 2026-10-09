@@ -1,0 +1,123 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 1002;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 12px;
+  background: #232f3e;
+  color: #ffffff;
+}
+
+.logo,
+.services {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 0;
+  padding: 0 8px;
+  height: 100%;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.logo {
+  padding-left: 0;
+}
+
+.services:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.gridIcon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+}
+
+.gridIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.search {
+  position: relative;
+  width: 420px;
+  max-width: 34vw;
+  margin-left: 12px;
+}
+
+.hint {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #b6bec9;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-sizing: border-box;
+  height: 30px;
+  padding: 0 16px;
+  background: #232f3e;
+  color: #d5dbdb;
+  font-size: 12px;
+}
+
+.footer button,
+.footer a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: #ffffff;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.footerLeft,
+.footerRight {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+@media (max-width: 760px) {
+  .services,
+  .search,
+  .footerRight span {
+    display: none;
+  }
+}
+
+/* Text-style header menus (region, account): no button chrome. */
+.menu button {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  font-weight: 700;
+}
