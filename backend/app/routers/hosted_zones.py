@@ -1,9 +1,14 @@
-from fastapi import APIRouter, Depends, Query, status
+import json
+from typing import Literal
+
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session as DbSession
 
 from app.core.database import get_db
 from app.routers.deps import get_current_user
 from app.schemas.hosted_zone import ZoneCreate, ZoneOut, ZonePage, ZoneSortBy, ZoneTypeFilter, ZoneUpdate
+from app.services import records as record_service
+from app.services import zone_files
 from app.services import zones as zone_service
 
 router = APIRouter(prefix="/hosted-zones", tags=["hosted-zones"], dependencies=[Depends(get_current_user)])
@@ -44,3 +49,16 @@ def update_hosted_zone(zone_id: str, body: ZoneUpdate, db: DbSession = Depends(g
 @router.delete("/{zone_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_hosted_zone(zone_id: str, db: DbSession = Depends(get_db)):
     zone_service.delete_zone(db, zone_id)
+
+
+@router.get("/{zone_id}/export")
+def export_hosted_zone(zone_id: str, format: Literal["bind", "json"] = "bind", db: DbSession = Depends(get_db)):
+    """Download the zone and all its records as a BIND zone file or a JSON document."""
+    zone = zone_service.get_zone(db, zone_id)
+    records = record_service.list_all_records(db, zone_id)
+    if format == "json":
+        body, media_type, ext = json.dumps(zone_files.export_json(zone, records), indent=2) + "\n", "application/json", "json"
+    else:
+        body, media_type, ext = zone_files.export_bind(zone, records), "text/plain", "zone"
+    filename = f"{zone.name.rstrip('.')}.{ext}"
+    return Response(body, media_type=media_type, headers={"Content-Disposition": f'attachment; filename="{filename}"'})

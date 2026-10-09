@@ -38,3 +38,34 @@ class RecordPage(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class ImportRequest(BaseModel):
+    content: str = Field(min_length=1, max_length=1_000_000, description="BIND zone file text")
+
+
+class ImportIssue(BaseModel):
+    message: str
+    line: int | None = None
+    name: str | None = None
+    type: str | None = None
+
+
+class ImportResult(BaseModel):
+    created: int
+    skipped: list[ImportIssue]
+    errors: list[ImportIssue]
+
+
+class BulkDeleteRequest(BaseModel):
+    ids: list[int] = Field(min_length=1, max_length=100)
+
+
+class BulkDeleteFailure(BaseModel):
+    id: int
+    reason: str
+
+
+class BulkDeleteResult(BaseModel):
+    deleted: list[int]
+    failed: list[BulkDeleteFailure]

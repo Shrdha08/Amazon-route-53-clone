@@ -3,7 +3,18 @@ from sqlalchemy.orm import Session as DbSession
 
 from app.core.database import get_db
 from app.routers.deps import get_current_user
-from app.schemas.record import RecordCreate, RecordOut, RecordPage, RecordSortBy, RecordType, RecordUpdate
+from app.schemas.record import (
+    BulkDeleteRequest,
+    BulkDeleteResult,
+    ImportRequest,
+    ImportResult,
+    RecordCreate,
+    RecordOut,
+    RecordPage,
+    RecordSortBy,
+    RecordType,
+    RecordUpdate,
+)
 from app.services import records as record_service
 
 router = APIRouter(
@@ -30,6 +41,16 @@ def list_records(
 def create_record(zone_id: str, body: RecordCreate, db: DbSession = Depends(get_db)):
     rec = record_service.create_record(db, zone_id, body.name, body.type, body.ttl, body.values)
     return record_service.to_out(rec)
+
+
+@router.post("/import", response_model=ImportResult)
+def import_records(zone_id: str, body: ImportRequest, db: DbSession = Depends(get_db)):
+    return record_service.import_zone_file(db, zone_id, body.content)
+
+
+@router.post("/bulk-delete", response_model=BulkDeleteResult)
+def bulk_delete_records(zone_id: str, body: BulkDeleteRequest, db: DbSession = Depends(get_db)):
+    return record_service.bulk_delete_records(db, zone_id, body.ids)
 
 
 @router.put("/{record_id}", response_model=RecordOut)

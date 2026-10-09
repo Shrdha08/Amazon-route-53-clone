@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session as DbSession
 from app.models import DnsRecord, HostedZone
 from app.schemas.record import RecordOut
 from app.services import record_validation as rv
+from app.services import zone_files
 from app.services.errors import ServiceError
 from app.services.zones import get_zone
 
@@ -109,3 +110,54 @@ def delete_record(db: DbSession, zone_id: str, record_id: int) -> None:
         raise ServiceError(409, f"The {rec.type} record at the zone apex is required and cannot be deleted")
     db.delete(rec)
     db.commit()
+
+
+def list_all_records(db: DbSession, zone_id: str) -> list[DnsRecord]:
+    """Every record of a zone in console order (apex first, then name, type)."""
+    zone = get_zone(db, zone_id)
+    stmt = (
+        select(DnsRecord)
+        .where(DnsRecord.zone_id == zone_id)
+        .order_by((DnsRecord.name != zone.name).asc(), DnsRecord.name.asc(), DnsRecord.type.asc())
+    )
+    return list(db.scalars(stmt))
+
+
+def import_zone_file(db: DbSession, zone_id: str, content: str) -> dict:
+    """Create records from BIND zone file text. Existing records are left untouched and reported."""
+    zone = get_zone(db, zone_id)
+    record_sets, issues = zone_files.parse_zone_file(content, zone.name)
+    errors = list(issues)
+    skipped: list[zone_files.Issue] = []
+    created = 0
+
+    for rs in record_sets:
+        label = {"name": rs.name.rstrip("."), "type": rs.type}
+        if rs.type == "SOA" or (rs.type == "NS" and rs.name == zone.name):
+            skipped.append(zone_files.Issue("Default apex record already exists", **label))
+        elif not (rs.name == zone.name or rs.name.endswith("." + zone.name)):
+            errors.append(zone_files.Issue(f"Name is outside the hosted zone {zone.name.rstrip('.')}", **label))
+        elif rs.type not in rv.CREATABLE_TYPES:
+            errors.append(zone_files.Issue(f"Record type {rs.type} is not supported", **label))
+        else:
+            try:
+                create_record(db, zone_id, rs.name, rs.type, rs.ttl, rs.values)
+                created += 1
+            except ServiceError as e:
+                bucket = skipped if e.status_code == 409 and "already exists" in e.message else errors
+                bucket.append(zone_files.Issue(e.message, **label))
+    return {"created": created, "skipped": skipped, "errors": errors}
+
+
+def bulk_delete_records(db: DbSession, zone_id: str, record_ids: list[int]) -> dict:
+    deleted: list[int] = []
+    failed: list[dict] = []
+    for rid in dict.fromkeys(record_ids):
+        try:
+            delete_record(db, zone_id, rid)
+            deleted.append(rid)
+        except ServiceError as e:
+            if e.status_code == 404 and e.message.startswith("No hosted zone"):
+                raise
+            failed.append({"id": rid, "reason": e.message})
+    return {"deleted": deleted, "failed": failed}
