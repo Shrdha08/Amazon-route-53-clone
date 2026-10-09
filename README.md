@@ -2,7 +2,7 @@
 
 A full-stack clone of the **AWS Route 53 management console**. It recreates the console's look, navigation and workflows for managing **hosted zones** and **DNS records**, backed by a real REST API and a persistent SQLite database. The focus is the Route 53 user experience; the app stores and manages DNS configuration but does not answer live DNS queries.
 
-**Live demo:** _add the Vercel URL here after deploying (see [Deployment](#deployment))_
+**Live demo:** <https://amazon-route-53-clone.vercel.app> (the API runs on Render's free tier, so the first request after a while can take up to a minute)
 **Demo sign-in:** account ID `123456789012`, IAM username `admin`, password `admin123`
 
 | Sign-in | Hosted zones |
