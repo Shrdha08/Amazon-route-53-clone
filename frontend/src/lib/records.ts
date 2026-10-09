@@ -103,10 +103,38 @@ export function useUpdateRecord(zoneId: string, recordId: number) {
   });
 }
 
-export function useDeleteRecord(zoneId: string) {
+export interface BulkDeleteResult {
+  deleted: number[];
+  failed: { id: number; reason: string }[];
+}
+
+export function useDeleteRecords(zoneId: string) {
   const invalidate = useInvalidate(zoneId);
   return useMutation({
-    mutationFn: (recordId: number) => api<void>(`${base(zoneId)}/${recordId}`, { method: "DELETE" }),
+    mutationFn: (ids: number[]) =>
+      api<BulkDeleteResult>(`${base(zoneId)}/bulk-delete`, { method: "POST", body: JSON.stringify({ ids }) }),
+    onSuccess: invalidate,
+  });
+}
+
+export interface ImportIssue {
+  message: string;
+  line: number | null;
+  name: string | null;
+  type: string | null;
+}
+
+export interface ImportResult {
+  created: number;
+  skipped: ImportIssue[];
+  errors: ImportIssue[];
+}
+
+export function useImportRecords(zoneId: string) {
+  const invalidate = useInvalidate(zoneId);
+  return useMutation({
+    mutationFn: (content: string) =>
+      api<ImportResult>(`${base(zoneId)}/import`, { method: "POST", body: JSON.stringify({ content }) }),
     onSuccess: invalidate,
   });
 }

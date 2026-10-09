@@ -4,6 +4,7 @@ import {
   Alert,
   Box,
   Button,
+  ButtonDropdown,
   ColumnLayout,
   Container,
   ContentLayout,
@@ -15,9 +16,10 @@ import {
 } from "@cloudscape-design/components";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
-import { useBreadcrumbs } from "@/components/ConsoleShell";
+import { useBreadcrumbs, useShell } from "@/components/ConsoleShell";
 import DeleteZoneModal from "@/components/DeleteZoneModal";
 import RecordsTable from "@/components/RecordsTable";
+import { downloadZoneExport, type ExportFormat } from "@/lib/download";
 import { useZone } from "@/lib/zones";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -32,6 +34,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 export default function HostedZoneDetailPage() {
   const { zoneId } = useParams<{ zoneId: string }>();
   const router = useRouter();
+  const { notify } = useShell();
   const { data: zone, isLoading, error } = useZone(zoneId);
   const [deleting, setDeleting] = useState(false);
   const displayName = zone?.name.replace(/\.$/, "") ?? zoneId;
@@ -56,7 +59,25 @@ export default function HostedZoneDetailPage() {
     <>
       <ContentLayout
         header={
-          <Header variant="h1" actions={<Button onClick={() => setDeleting(true)}>Delete zone</Button>}>
+          <Header
+            variant="h1"
+            actions={
+              <SpaceBetween direction="horizontal" size="xs">
+                <ButtonDropdown
+                  items={[
+                    { id: "bind", text: "BIND zone file", description: "Standard zone file (.zone)" },
+                    { id: "json", text: "JSON", description: "Zone details and records (.json)" },
+                  ]}
+                  onItemClick={({ detail }) =>
+                    downloadZoneExport(zone.id, detail.id as ExportFormat).catch((e: Error) => notify("error", e.message))
+                  }
+                >
+                  Export zone
+                </ButtonDropdown>
+                <Button onClick={() => setDeleting(true)}>Delete zone</Button>
+              </SpaceBetween>
+            }
+          >
             {displayName}
           </Header>
         }

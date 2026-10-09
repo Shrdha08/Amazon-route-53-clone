@@ -14,6 +14,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import DeleteRecordModal from "@/components/DeleteRecordModal";
+import { useHotkeys } from "@/lib/hotkeys";
 import { RECORD_TYPES, useRecords, type DnsRecord, type RecordSortBy, type RecordType } from "@/lib/records";
 
 const PAGE_SIZE = 10;
@@ -32,7 +33,7 @@ export default function RecordsTable({ zoneId }: { zoneId: string }) {
   const [sortBy, setSortBy] = useState<RecordSortBy>("name");
   const [desc, setDesc] = useState(false);
   const [selected, setSelected] = useState<DnsRecord[]>([]);
-  const [deleting, setDeleting] = useState<DnsRecord | null>(null);
+  const [deleting, setDeleting] = useState<DnsRecord[]>([]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -44,15 +45,17 @@ export default function RecordsTable({ zoneId }: { zoneId: string }) {
 
   const { data, isLoading, isError, error } = useRecords(zoneId, { q, type, sort_by: sortBy, desc, page, page_size: PAGE_SIZE });
   const pages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
-  const record = selected[0];
+  const single = selected.length === 1 ? selected[0] : undefined;
   const filtering = q !== "" || type !== "";
   const base = `/hosted-zones/${zoneId}/records`;
+
+  useHotkeys({ c: () => router.push(`${base}/create`) });
 
   return (
     <>
       <Table
         stickyHeader
-        selectionType="single"
+        selectionType="multi"
         selectedItems={selected}
         onSelectionChange={({ detail }) => setSelected(detail.selectedItems)}
         trackBy="id"
@@ -87,8 +90,9 @@ export default function RecordsTable({ zoneId }: { zoneId: string }) {
             counter={data ? `(${data.total})` : undefined}
             actions={
               <SpaceBetween direction="horizontal" size="xs">
-                <Button disabled={!record} onClick={() => setDeleting(record)}>Delete record</Button>
-                <Button disabled={!record} onClick={() => router.push(`${base}/${record.id}/edit`)}>Edit record</Button>
+                <Button onClick={() => router.push(`${base}/import`)}>Import zone file</Button>
+                <Button disabled={selected.length === 0} onClick={() => setDeleting(selected)}>Delete record{selected.length > 1 ? "s" : ""}</Button>
+                <Button disabled={!single} onClick={() => router.push(`${base}/${single?.id}/edit`)}>Edit record</Button>
                 <Button variant="primary" onClick={() => router.push(`${base}/create`)}>Create record</Button>
               </SpaceBetween>
             }
@@ -137,7 +141,7 @@ export default function RecordsTable({ zoneId }: { zoneId: string }) {
           )
         }
       />
-      <DeleteRecordModal zoneId={zoneId} record={deleting} onClose={() => setDeleting(null)} onDeleted={() => setSelected([])} />
+      <DeleteRecordModal zoneId={zoneId} records={deleting} onClose={() => setDeleting([])} onDeleted={() => setSelected([])} />
     </>
   );
 }
