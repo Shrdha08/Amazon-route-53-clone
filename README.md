@@ -16,8 +16,8 @@ A functional clone of the AWS Route 53 console: hosted zone and DNS record manag
 | Database models and seed data          | Done        |
 | Hosted zones CRUD + search             | Done        |
 | DNS records CRUD + search + validation | Done        |
-| Route 53 console chrome (nav, sidebar) | In progress (top bar, side nav, breadcrumbs, notifications done) |
-| "Coming soon" placeholder sections     | Planned     |
+| Route 53 console chrome (nav, sidebar) | Done        |
+| "Coming soon" placeholder sections     | Done        |
 | Bonus: BIND import/export, dark mode, bulk ops, shortcuts | Planned |
 
 ## Repository layout
@@ -149,12 +149,24 @@ These mirror Route 53 so the clone feels like the real console:
 ```
 src/app/login/                 sign-in page
 src/app/(console)/             authenticated area (layout = AuthGuard + ConsoleShell)
+  dashboard/, health-checks/,
+  traffic-policies/, resolver/,
+  profiles/                    "Coming soon" placeholders (ComingSoon component)
   hosted-zones/                list, create, [zoneId] details (Records tab), [zoneId]/edit
     [zoneId]/records/          create, [recordId]/edit
 src/components/ConsoleShell    top nav, side nav, breadcrumbs, flash notifications
 src/components/Record*         records table, create/edit form, delete modal
 src/lib/                       API client, auth context, zone hooks (TanStack Query)
 ```
+
+## Testing
+
+```bash
+cd backend  && python -m pytest                      # API, validation, auth (41 tests)
+cd frontend && npx tsc --noEmit && npx eslint src    # types and lint
+```
+
+The main user flows (login, session persistence, zone and record create/edit/delete, search, apex protection, logout) were also exercised end to end in a real browser.
 
 ## Limitations
 
