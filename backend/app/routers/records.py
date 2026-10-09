@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session as DbSession
 
@@ -31,9 +33,13 @@ def list_records(
     desc: bool = False,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
+    routing_policy: str = "",
+    alias: Literal["yes", "no", ""] = "",
     db: DbSession = Depends(get_db),
 ):
-    items, total = record_service.list_records(db, zone_id, q, type or "", sort_by, desc, page, page_size)
+    items, total = record_service.list_records(
+        db, zone_id, q, type or "", sort_by, desc, page, page_size, routing_policy, alias
+    )
     return RecordPage(items=[record_service.to_out(r) for r in items], total=total, page=page, page_size=page_size)
 
 

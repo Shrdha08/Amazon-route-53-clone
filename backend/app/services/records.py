@@ -54,6 +54,7 @@ def get_record(db: DbSession, zone_id: str, record_id: int) -> DnsRecord:
 def list_records(
     db: DbSession, zone_id: str, q: str = "", record_type: str = "", sort_by: str = "name",
     descending: bool = False, page: int = 1, page_size: int = 10,
+    routing_policy: str = "", alias: str = "",
 ) -> tuple[list[DnsRecord], int]:
     zone = get_zone(db, zone_id)
     stmt = select(DnsRecord).where(DnsRecord.zone_id == zone_id)
@@ -62,6 +63,12 @@ def list_records(
         stmt = stmt.where(or_(func.lower(DnsRecord.name).like(like), func.lower(DnsRecord.value).like(like)))
     if record_type:
         stmt = stmt.where(DnsRecord.type == record_type)
+    if routing_policy:
+        stmt = stmt.where(DnsRecord.routing_policy == routing_policy)
+    if alias == "yes":
+        stmt = stmt.where(DnsRecord.alias_target.is_not(None))
+    elif alias == "no":
+        stmt = stmt.where(DnsRecord.alias_target.is_(None))
 
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
 

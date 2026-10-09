@@ -133,3 +133,15 @@ def test_search_filter_sort_paginate(auth_client):
     assert len(page2["items"]) == 5 and page2["total"] == 12
     top = auth_client.get(base, params={"type": "A", "sort_by": "ttl", "desc": True}).json()["items"][0]
     assert top["ttl"] == 111
+
+
+def test_filter_by_routing_policy_and_alias(auth_client):
+    zid = _zone(auth_client, "filters.example")
+    _mk(auth_client, zid, name="a", type="A", values=["1.1.1.1"])
+    base = _url(zid)
+    total = auth_client.get(base).json()["total"]
+    assert auth_client.get(base, params={"routing_policy": "Simple"}).json()["total"] == total
+    assert auth_client.get(base, params={"routing_policy": "Weighted"}).json()["total"] == 0
+    assert auth_client.get(base, params={"alias": "no"}).json()["total"] == total
+    assert auth_client.get(base, params={"alias": "yes"}).json()["total"] == 0
+    assert auth_client.get(base, params={"alias": "maybe"}).status_code == 422

@@ -124,7 +124,6 @@ def delete_zone(db: DbSession, zone_id: str) -> None:
         )
     )
     if extra:
-        raise ServiceError(409, "The hosted zone contains records other than the default NS and SOA "
-                             "records. Delete those records before deleting the hosted zone.")
+        raise ServiceError(409, "The specified hosted zone contains non-required resource record sets and so cannot be deleted")
     db.delete(zone)
     db.commit()
