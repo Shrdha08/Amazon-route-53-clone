@@ -18,6 +18,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     try {
       const body = await res.json();
       if (typeof body.detail === "string") message = body.detail;
+      else if (Array.isArray(body.detail)) message = body.detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join("; ");
     } catch {
       /* non-JSON error body */
     }

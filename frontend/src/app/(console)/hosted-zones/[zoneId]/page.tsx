@@ -16,6 +16,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useBreadcrumbs } from "@/components/ConsoleShell";
 import DeleteZoneModal from "@/components/DeleteZoneModal";
+import RecordsTable from "@/components/RecordsTable";
 import { useZone } from "@/lib/zones";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -73,7 +74,7 @@ export default function HostedZoneDetailPage() {
               {
                 id: "records",
                 label: `Records (${zone.record_count})`,
-                content: <Box color="text-body-secondary" padding="l">Record management is coming in the next step.</Box>,
+                content: <RecordsTable zoneId={zone.id} />,
               },
               {
                 id: "details",
