@@ -318,8 +318,8 @@ cd backend
 python -m pytest                       # 50 tests on a temporary database
 
 cd frontend
-npx tsc --noEmit                       # type-check
-npx eslint src                         # lint
+npm run typecheck                      # generate route types, then type-check
+npm run lint                           # lint
 npm run build                          # production build
 ```
 
