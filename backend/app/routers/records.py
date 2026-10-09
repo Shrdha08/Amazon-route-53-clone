@@ -53,6 +53,11 @@ def bulk_delete_records(zone_id: str, body: BulkDeleteRequest, db: DbSession = D
     return record_service.bulk_delete_records(db, zone_id, body.ids)
 
 
+@router.get("/{record_id}", response_model=RecordOut)
+def get_record(zone_id: str, record_id: int, db: DbSession = Depends(get_db)):
+    return record_service.to_out(record_service.get_record(db, zone_id, record_id))
+
+
 @router.put("/{record_id}", response_model=RecordOut)
 def update_record(zone_id: str, record_id: int, body: RecordUpdate, db: DbSession = Depends(get_db)):
     rec = record_service.update_record(db, zone_id, record_id, body.ttl, body.values)

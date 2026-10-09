@@ -47,6 +47,10 @@ def _get(db: DbSession, zone_id: str, record_id: int) -> tuple[HostedZone, DnsRe
     return zone, rec
 
 
+def get_record(db: DbSession, zone_id: str, record_id: int) -> DnsRecord:
+    return _get(db, zone_id, record_id)[1]
+
+
 def list_records(
     db: DbSession, zone_id: str, q: str = "", record_type: str = "", sort_by: str = "name",
     descending: bool = False, page: int = 1, page_size: int = 10,

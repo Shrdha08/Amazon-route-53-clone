@@ -64,16 +64,10 @@ export function useRecords(zoneId: string, params: RecordListParams) {
   });
 }
 
-/** The API has no single-record GET, so edit pages find the record in a large page. */
 export function useRecord(zoneId: string, recordId: number) {
   return useQuery({
     queryKey: recordKeys.one(zoneId, recordId),
-    queryFn: async () => {
-      const page = await api<RecordPage>(`${base(zoneId)}?page_size=100`);
-      const rec = page.items.find((r) => r.id === recordId);
-      if (rec) return rec;
-      throw new Error(`No record found with ID: ${recordId}`);
-    },
+    queryFn: () => api<DnsRecord>(`${base(zoneId)}/${recordId}`),
   });
 }
 

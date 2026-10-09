@@ -94,6 +94,15 @@ def test_update_ttl_and_values_only(auth_client):
     assert auth_client.put(_url(zid, 99999), json={"ttl": 60, "values": ["9.9.9.9"]}).status_code == 404
 
 
+def test_get_single_record(auth_client):
+    zid = _zone(auth_client, "single.example")
+    rid = _mk(auth_client, zid, name="a", type="A", values=["1.1.1.1"]).json()["id"]
+    r = auth_client.get(_url(zid, rid))
+    assert r.status_code == 200 and r.json()["values"] == ["1.1.1.1"]
+    assert auth_client.get(_url(zid, 99999)).status_code == 404
+    assert auth_client.get(_url(_zone(auth_client, "other-single.example"), rid)).status_code == 404
+
+
 def test_record_of_other_zone_is_404(auth_client):
     z1, z2 = _zone(auth_client, "one.example"), _zone(auth_client, "two.example")
     rid = _mk(auth_client, z1, name="a", type="A", values=["1.1.1.1"]).json()["id"]
